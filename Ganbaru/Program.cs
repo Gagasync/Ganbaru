@@ -8,6 +8,7 @@ namespace Ganbaru.Syntax
     public enum SyntaxKind
     {
         BadToken,
+        ListKind,
         EofToken,
 
         PlusToken,
@@ -37,7 +38,10 @@ namespace Ganbaru.Syntax
         ColonToken,
         CommaToken,
         DotToken,
-        ColonColonToken
+        ColonColonToken,
+        IdentifierToken,
+        ClassDeclaration,
+        MethodDeclaration
     }
 
 
@@ -68,60 +72,36 @@ namespace Ganbaru.Syntax
             _trailing = trailing;
         }
 
-        public SyntaxKind Kind()
-        {
-            return _kind;
-        }
+        public SyntaxKind Kind => _kind;
 
-        public string Value()
-        {
-            return _value;
-        }
+        public string Value => _value;
 
-        public int Length()
-        {
-            return _value.Length;
-        }
+        public int Length => _value.Length;
 
-        public List<SyntaxTrivia> Leading()
-        {
-            return _leading;
-        }
+        public List<SyntaxTrivia> Leading => _leading;
 
-        public List<SyntaxTrivia> Trailing()
-        {
-            return _trailing;
-        }
+        public List<SyntaxTrivia> Trailing => _trailing;
     }
 
     public class Node
     {
         private readonly SyntaxKind _kind;
-        private readonly NodeOrToken[] _children;
+        private readonly List<NodeOrToken> _children;
 
         private readonly int _length;
 
-        public Node(SyntaxKind kind, NodeOrToken[] children)
+        public Node(SyntaxKind kind, List<NodeOrToken> children)
         {
             _kind = kind;
             _children = children;
-            _length = children.Select(x => x.Length()).Sum();
+            _length = children.Select(x => x.Length).Sum();
         }
 
-        public SyntaxKind Kind()
-        {
-            return _kind;
-        }
+        public SyntaxKind Kind => _kind;
 
-        public NodeOrToken[] Children()
-        {
-            return _children;
-        }
+        public List<NodeOrToken> Children => _children;
 
-        public int Length()
-        {
-            return _length;
-        }
+        public int Length => _length;
     }
 
     public class NodeOrToken
@@ -140,15 +120,34 @@ namespace Ganbaru.Syntax
             _token = token;
         }
 
-        public bool IsToken()
+        public bool IsToken => _token != null;
+
+        public bool IsNode => _node != null;
+
+        public SyntaxKind Kind
         {
-            return _token != null;
+            get
+            {
+                if (_node != null)
+                {
+                    return _node.Kind;
+                }
+                return _token!.Kind;
+            }
         }
 
-        public bool IsNode()
+        public int Length
         {
-            return _node != null;
+            get
+            {
+                if (_node != null)
+                {
+                    return _node.Length;
+                }
+                return _token!.Length;
+            }
         }
+
 
         public Node GetRequiredNode()
         {
@@ -177,23 +176,29 @@ namespace Ganbaru.Syntax
         {
             return _token;
         }
+    }
 
-        public SyntaxKind Kind()
-        {
-            if (_node != null)
-            {
-                return _node.Kind();
-            }
-            return _token!.Kind();
+    public class SyntaxFactory {
+        public static Node ClassDeclaration(Node modifiers, Token classKeyword, Token identifier, Token leftBrace, Token rightBrace) {
+            return new Node(SyntaxKind.ClassDeclaration, [
+                new NodeOrToken(modifiers),
+                new NodeOrToken(classKeyword),
+                new NodeOrToken(identifier),
+                new NodeOrToken(leftBrace),
+                new NodeOrToken(rightBrace)
+            ]);
         }
 
-        public int Length()
-        {
-            if (_node != null)
-            {
-                return _node.Length();
-            }
-            return _token!.Length();
+        public static Node MethodDeclaration(Node modifiers, Token returnType, Token identifier, Token leftParen, Token rightParen, Token leftBrace, Token rightBrace) {
+            return new Node(SyntaxKind.MethodDeclaration, [
+                new NodeOrToken(modifiers),
+                new NodeOrToken(returnType),
+                new NodeOrToken(identifier),
+                new NodeOrToken(leftParen),
+                new NodeOrToken(rightParen),
+                new NodeOrToken(leftBrace),
+                new NodeOrToken(rightBrace)
+            ]);
         }
     }
 }
@@ -277,24 +282,61 @@ namespace Ganbaru.Parser
         private readonly Token[] _tokens;
         private int _position;
 
+        public Token Current {get;}
+        public Token LA {get;}
+
+        internal Token EatToken()
+        {
+            throw new NotImplementedException();
+        }
     }
 
     public class LanguageParser {
 
-        private readonly Lexer _lexer;
+        private readonly LexerLookAheadQueue _lexer;
 
         public Node ParseClassDeclaration() {
-            throw new NotImplementedException();
+            var modifiers = ParseModifiers();
+            var classKeyword = Match(SyntaxKind.ClassKeyword);
+            var identifier = Match(SyntaxKind.IdentifierToken);
+            var leftBrace = Match(SyntaxKind.LBraceToken);
+
+            var rightBrace = Match(SyntaxKind.RBraceToken);
+
+            return SyntaxFactory.ClassDeclaration(modifiers, classKeyword, identifier, leftBrace, rightBrace);
         }
 
         private Node ParseModifiers() {
-            throw new NotImplementedException();
-            
+            List<NodeOrToken> list = [];
+            bool foundModifier = true;
+            while(foundModifier)
+            {
+                switch(_lexer.Current.Kind) {
+                    case SyntaxKind.PublicKeyword:
+                    case SyntaxKind.PrivateKeyword:
+                    case SyntaxKind.InternalKeyword:
+                    case SyntaxKind.ProtectedKeyword:
+                    case SyntaxKind.AbstractKeyword:
+                    case SyntaxKind.StaticKeyword:
+                    case SyntaxKind.VirtualKeyword:
+                    case SyntaxKind.SealedKeyword:
+                        list.Add(new NodeOrToken(_lexer.EatToken()));
+                        foundModifier = true;
+                        break;
+                    default:
+                        foundModifier = false;
+                        break;
+                }
+            }
+
+            return new Node(SyntaxKind.ListKind, list);
         }
 
         private Token Match(SyntaxKind kind) {
-            throw new NotImplementedException();
-            
+            if (_lexer.Current.Kind == kind) {
+                return _lexer.EatToken();
+            }
+            return new Token(kind, string.Empty);
         }
     }
 }
