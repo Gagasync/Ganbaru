@@ -110,7 +110,8 @@ public class SyntaxTrivia
     private readonly SyntaxKind _kind;
     private readonly string _value;
 
-    public SyntaxTrivia(SyntaxKind kind, string value) {
+    public SyntaxTrivia(SyntaxKind kind, string value)
+    {
         _kind = kind;
         _value = value;
     }

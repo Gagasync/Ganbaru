@@ -20,8 +20,8 @@ public class Lexer
 
     public Token Lex()
     {
-        List<SyntaxTrivia> leading = new List<SyntaxTrivia>();
-        List<SyntaxTrivia> trailing = new List<SyntaxTrivia>();
+        List<SyntaxTrivia> leading = [];
+        List<SyntaxTrivia> trailing = [];
 
         LexTrivia(false, ref leading);
         var tokenInfo = LexToken();
@@ -108,7 +108,7 @@ public class Lexer
         }
 
         return new TokenInfo { Kind = SyntaxKind.IdentifierToken, Value = text };
-     }
+    }
 
     private TokenInfo LexNumber()
     {
@@ -125,18 +125,19 @@ public class Lexer
             }
         }
         return new TokenInfo { Kind = SyntaxKind.NumberLiteralToken, Value = _source.GetText() };
-   }
+    }
 
     private void LexTrivia(bool isTrailing, ref List<SyntaxTrivia> trivias)
     {
         _source.Start();
-        if (char.IsWhiteSpace(_source.Current)) {
+        if (char.IsWhiteSpace(_source.Current))
+        {
 
             while (char.IsWhiteSpace(_source.Current))
             {
                 _source.Eat();
             }
-    
+
             trivias.Add(new SyntaxTrivia(SyntaxKind.WhitespaceSyntaxTrivia, _source.GetText()));
         }
     }
@@ -145,15 +146,31 @@ public class Lexer
 public class LexerLookAheadQueue
 {
     private readonly Lexer _lexer;
-    private readonly Token[] _tokens;
+    private readonly List<Token> _tokens = new List<Token>();
     private int _position;
 
-    public Token Current { get; }
-    public Token LA { get; }
+    public LexerLookAheadQueue(Lexer lexer)
+    {
+        _lexer = lexer;
+    }
+
+    public Token Current => Peek(0);
+    public Token LA => Peek(1);
+
+    private Token Peek(int n)
+    {
+        while (_position + n >= _tokens.Count)
+        {
+            _tokens.Add(_lexer.Lex());
+        }
+        return _tokens[_position + n];
+    }
 
     internal Token EatToken()
     {
-        throw new NotImplementedException();
+        var tok = Current;
+        _position++;
+        return tok;
     }
 }
 
